@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0B6B6B">
+<meta name="color-scheme" content="light dark">
+<meta name="description" content="Auditor y visor de presupuestos BC3 (FIEBDC-3). Los archivos se procesan en tu navegador y no se suben a ningún sitio.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<title>Herramientas BC3</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..125,400..800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root {
+  color-scheme: light;
+  --papel: #F3F5F4;
+  --superficie: #FFFFFF;
+  --tinta: #16222E;
+  --tinta-2: #4A5A66;
+  --tinta-3: #7A8A94;
+  --linea: #D6DDDB;
+  --linea-suave: #E7ECEA;
+  --acento: #0B6B6B;
+  --acento-suave: #DCEEEC;
+  --barra: #9CC7C3;
+  --sans: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --papel: #0F1517; --superficie: #172023; --tinta: #E3EAE8; --tinta-2: #A9B6B3; --tinta-3: #7F8C89;
+    --linea: #2A3639; --linea-suave: #212B2E; --acento: #5BBDB8; --acento-suave: #173634; --barra: #2E6B67;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --papel: #0F1517; --superficie: #172023; --tinta: #E3EAE8; --tinta-2: #A9B6B3; --tinta-3: #7F8C89;
+  --linea: #2A3639; --linea-suave: #212B2E; --acento: #5BBDB8; --acento-suave: #173634; --barra: #2E6B67;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--papel); color: var(--tinta);
+  font-family: var(--sans); font-size: 15px; line-height: 1.5;
+  padding-inline: 16px;
+  padding-block: calc(32px + env(safe-area-inset-top, 0px)) calc(40px + env(safe-area-inset-bottom, 0px));
+}
+.envoltura { max-width: 960px; margin: 0 auto; display: grid; gap: 28px; }
+
+.cab { display: grid; gap: 10px; }
+.cab h1 {
+  margin: 0; font-size: clamp(30px, 6vw, 44px); font-weight: 800; font-stretch: 115%;
+  letter-spacing: -.015em; line-height: 1.05; text-wrap: balance;
+}
+.cab h1 span { color: var(--acento); }
+.cab p { margin: 0; color: var(--tinta-2); max-width: 60ch; }
+
+.registro {
+  font-family: var(--mono); font-size: 12.5px; color: var(--tinta-2);
+  background: var(--superficie); border: 1px solid var(--linea); border-radius: 8px;
+  padding: 10px 14px; overflow-x: auto; white-space: nowrap;
+}
+.registro b { color: var(--acento); font-weight: 500; }
+.registro i { font-style: normal; color: var(--tinta-3); }
+
+.herramientas { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr)); gap: 16px; }
+.tarjeta {
+  background: var(--superficie); border: 1px solid var(--linea); border-radius: 12px;
+  padding: 22px; display: grid; gap: 14px; align-content: start;
+  text-decoration: none; color: inherit;
+  transition: border-color .15s, transform .15s;
+}
+.tarjeta:hover { border-color: var(--acento); }
+.tarjeta:focus-visible { outline: 2px solid var(--acento); outline-offset: 3px; }
+@media (prefers-reduced-motion: no-preference) { .tarjeta:hover { transform: translateY(-2px); } }
+.tarjeta .rot { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--tinta-3); }
+.tarjeta h2 { margin: 0; font-size: 26px; font-weight: 800; font-stretch: 110%; letter-spacing: -.01em; }
+.tarjeta h2 span { color: var(--acento); }
+.tarjeta p { margin: 0; color: var(--tinta-2); }
+.tarjeta ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 7px; font-size: 14px; }
+.tarjeta li { display: grid; grid-template-columns: 14px minmax(0, 1fr); gap: 8px; }
+.tarjeta li::before { content: ""; width: 8px; height: 8px; margin-top: 7px; border-radius: 2px; background: var(--barra); }
+.tarjeta .ir {
+  justify-self: start; margin-top: 4px; font-weight: 700; font-size: 14px;
+  background: var(--acento); color: var(--superficie); border-radius: 6px; padding: 9px 16px;
+}
+
+.notas { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 20px 28px; border-top: 1px solid var(--linea); padding-top: 22px; }
+.nota { display: grid; gap: 4px; align-content: start; }
+.nota h3 { margin: 0; font-size: 12px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--tinta-3); }
+.nota p { margin: 0; font-size: 14px; color: var(--tinta-2); }
+
+.pie { font-size: 12px; color: var(--tinta-3); }
+.pie a { color: inherit; }
+</style>
+</head>
+<body>
+<main class="envoltura">
+  <header class="cab">
+    <h1>Herramientas <span>BC3</span></h1>
+    <p>Revisa y consulta presupuestos en formato FIEBDC-3, el que exportan Presto, Arquímedes, TCQ o CYPE. Abres el archivo y lo tienes al momento, desde el ordenador o el móvil.</p>
+    <div class="registro" aria-label="Ejemplo de registro BC3"><b>~C</b>|02.01|<b>m3</b>|Hormigón HA-25/B/20/IIa en zapatas|<b>94.59</b>|280926|0| <i>&nbsp;← una partida: código, unidad, resumen y precio</i></div>
+  </header>
+
+  <section class="herramientas" aria-label="Herramientas">
+    <a class="tarjeta" href="auditor.html">
+      <span class="rot">Antes de licitar</span>
+      <h2>Auditor <span>BC3</span></h2>
+      <p>Pasa el presupuesto por 22 reglas y te dice qué corregir antes de presentarlo.</p>
+      <ul>
+        <li>Mediciones o precios a cero, capítulos vacíos, unidades raras</li>
+        <li>Líneas de medición que no suman y precios que no cuadran con su descompuesto</li>
+        <li>Partidas repetidas, descripciones duplicadas y partidas alzadas con mucho peso</li>
+        <li>Informe Excel con resumen, incidencias y presupuesto</li>
+      </ul>
+      <span class="ir">Abrir el auditor</span>
+    </a>
+    <a class="tarjeta" href="visor.html">
+      <span class="rot">Consultar un presupuesto</span>
+      <h2>Visor <span>BC3</span></h2>
+      <p>Navega el presupuesto como en Presto, sin tener Presto instalado.</p>
+      <ul>
+        <li>Árbol de capítulos y partidas con importes y buscador</li>
+        <li>Ficha de cada partida: texto, descompuesto y medición detallada</li>
+        <li>Recursos de toda la obra: horas de mano de obra, m³ de hormigón, kg de acero…</li>
+        <li>Exportación a Excel del presupuesto descompuesto y los recursos</li>
+      </ul>
+      <span class="ir">Abrir el visor</span>
+    </a>
+  </section>
+
+  <section class="notas">
+    <div class="nota">
+      <h3>Privacidad</h3>
+      <p>El BC3 se lee en tu navegador. No se sube a ningún servidor ni sale de tu equipo, aunque la página esté publicada en internet.</p>
+    </div>
+    <div class="nota">
+      <h3>Compatibilidad</h3>
+      <p>Probado con 22 BC3 públicos: Presto 7 a 22, CYPE, TCQ, ARPO y el banco de costes de la Junta de Andalucía. Codificaciones ANSI, 850 y UTF-8.</p>
+    </div>
+    <div class="nota">
+      <h3>En el móvil</h3>
+      <p>Desde el navegador, «Añadir a pantalla de inicio» la deja como una app más. El archivo lo eliges desde Archivos o Drive.</p>
+    </div>
+  </section>
+
+  <footer class="pie">Formato FIEBDC-3. Exportación a Excel con <a href="lib/LICENSE-sheetjs.txt">SheetJS</a> (Apache 2.0), incluida en esta web.</footer>
+</main>
+</body>
+</html>

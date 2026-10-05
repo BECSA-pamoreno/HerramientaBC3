@@ -1,0 +1,1003 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0B6B6B">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="description" content="Visor de presupuestos BC3: capítulos, partidas, descompuestos, mediciones y recursos.">
+<title>Visor BC3</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..125,400..800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; }
+img { max-width: 100%; }
+[hidden] { display: none !important; }
+.volver { justify-self: start; display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; color: var(--tinta-3); text-decoration: none; margin-bottom: 6px; }
+.volver:hover { color: var(--acento); }
+
+:root {
+  --papel: #F3F5F4;
+  --superficie: #FFFFFF;
+  --tinta: #16222E;
+  --tinta-2: #4A5A66;
+  --tinta-3: #7A8A94;
+  --linea: #D6DDDB;
+  --linea-suave: #E9EEEC;
+  --acento: #0B6B6B;
+  --acento-suave: #DCEEEC;
+  --sel: #E4F1EF;
+  --mo: #2F5B8A;  --mo-bg: #E6EEF7;
+  --mq: #8A5A00;  --mq-bg: #FFF1CC;
+  --mt: #3F6B2A;  --mt-bg: #E7F2DE;
+  --ot: #5E4E86;  --ot-bg: #EEEAF6;
+  --barra: #9CC7C3;
+  --sans: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --papel: #0F1517; --superficie: #172023; --tinta: #E3EAE8; --tinta-2: #A9B6B3; --tinta-3: #7F8C89;
+    --linea: #2A3639; --linea-suave: #212B2E; --acento: #5BBDB8; --acento-suave: #173634; --sel: #1C3533;
+    --mo: #9DC0E8; --mo-bg: #1B2B3D; --mq: #F0C766; --mq-bg: #372B10; --mt: #A8D48E; --mt-bg: #1F3218;
+    --ot: #C5B6EE; --ot-bg: #2A2340; --barra: #2E6B67;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --papel: #0F1517; --superficie: #172023; --tinta: #E3EAE8; --tinta-2: #A9B6B3; --tinta-3: #7F8C89;
+  --linea: #2A3639; --linea-suave: #212B2E; --acento: #5BBDB8; --acento-suave: #173634; --sel: #1C3533;
+  --mo: #9DC0E8; --mo-bg: #1B2B3D; --mq: #F0C766; --mq-bg: #372B10; --mt: #A8D48E; --mt-bg: #1F3218;
+  --ot: #C5B6EE; --ot-bg: #2A2340; --barra: #2E6B67;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--papel); color: var(--tinta);
+  font-family: var(--sans); font-size: 14px; line-height: 1.45;
+  padding-inline: 16px; padding-block: 20px 48px;
+}
+.envoltura { max-width: 1280px; margin: 0 auto; display: grid; gap: 18px; }
+.num { font-variant-numeric: tabular-nums; }
+.mono { font-family: var(--mono); font-size: .92em; }
+
+.cab { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px; }
+.marca h1 { margin: 0; font-size: 28px; font-weight: 800; font-stretch: 112%; letter-spacing: -.01em; }
+.marca h1 span { color: var(--acento); }
+.marca p { margin: 2px 0 0; color: var(--tinta-2); font-size: 13px; }
+.acciones { display: flex; flex-wrap: wrap; gap: 8px; }
+button, .boton {
+  font: inherit; font-weight: 600; font-size: 13px; cursor: pointer;
+  border-radius: 6px; padding: 9px 14px; border: 1px solid var(--linea);
+  background: var(--superficie); color: var(--tinta); display: inline-flex; align-items: center; gap: 8px;
+}
+button:hover, .boton:hover { border-color: var(--acento); }
+button:focus-visible, .boton:focus-visible, input:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
+.primario { background: var(--acento); border-color: var(--acento); color: var(--superficie); }
+
+.barra-archivo {
+  border: 1.5px dashed var(--linea); border-radius: 10px; background: var(--superficie);
+  padding: 12px 16px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 24px;
+}
+.barra-archivo.encima { border-color: var(--acento); background: var(--acento-suave); }
+.barra-archivo .obra { font-size: 17px; font-weight: 700; flex: 1 1 260px; min-width: 0; overflow-wrap: anywhere; }
+.barra-archivo .obra small { display: block; font-size: 12px; font-weight: 400; color: var(--tinta-2); }
+.dato { display: grid; gap: 1px; }
+.dato .rot { font-size: 11px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: var(--tinta-3); }
+.dato .val { font-size: 18px; font-weight: 700; font-stretch: 106%; }
+.etiqueta-ejemplo {
+  display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  background: var(--mq-bg); color: var(--mq); padding: 2px 7px; border-radius: 4px; margin-left: 6px; vertical-align: 2px;
+}
+
+.pestanas { display: flex; gap: 4px; border-bottom: 1px solid var(--linea); overflow-x: auto; }
+.pestana { border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: none; padding: 10px 12px; color: var(--tinta-2); white-space: nowrap; }
+.pestana[aria-selected="true"] { color: var(--tinta); border-bottom-color: var(--acento); }
+
+/* Vista árbol + ficha */
+.dos { display: grid; grid-template-columns: minmax(280px, 400px) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 860px) { .dos { grid-template-columns: minmax(0, 1fr); } }
+.caja { background: var(--superficie); border: 1px solid var(--linea); border-radius: 10px; }
+.arbol-caja { display: grid; grid-template-rows: auto minmax(0, 1fr); max-height: min(78vh, 900px); }
+@media (max-width: 860px) { .arbol-caja { max-height: 52vh; } }
+.arbol-cab { padding: 10px; border-bottom: 1px solid var(--linea); display: flex; gap: 8px; }
+.arbol-cab input {
+  font: inherit; font-size: 13px; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--linea);
+  background: var(--papel); color: var(--tinta); flex: 1; min-width: 0;
+}
+.arbol-cab button { padding: 6px 10px; font-size: 12px; }
+.arbol { overflow: auto; padding: 6px 0; }
+.nodo {
+  display: grid; grid-template-columns: 18px auto minmax(0, 1fr) auto; gap: 6px; align-items: baseline;
+  width: 100%; text-align: left; border: 0; border-radius: 0; background: none; padding: 5px 12px 5px 0; font-weight: 400;
+}
+.nodo:hover { background: var(--linea-suave); }
+.nodo[aria-current="true"] { background: var(--sel); box-shadow: inset 3px 0 0 var(--acento); }
+.nodo .tog { color: var(--tinta-3); font-size: 11px; text-align: center; }
+.nodo .cod { font-family: var(--mono); font-size: 12px; color: var(--tinta-2); }
+.nodo.cap .cod { color: var(--acento); font-weight: 500; }
+.nodo.cap .txt { font-weight: 700; }
+.nodo .txt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nodo .imp { font-size: 12px; color: var(--tinta-2); font-variant-numeric: tabular-nums; }
+mark { background: var(--mq-bg); color: inherit; border-radius: 2px; }
+
+/* Ficha */
+.ficha { padding: 20px; display: grid; gap: 18px; min-width: 0; }
+.migas { font-size: 12px; color: var(--tinta-3); display: flex; flex-wrap: wrap; gap: 4px; }
+.migas button { border: 0; padding: 0; background: none; font-weight: 500; font-size: 12px; color: var(--acento); }
+.ficha h2 { margin: 0; font-size: 22px; font-weight: 700; font-stretch: 104%; line-height: 1.2; text-wrap: balance; }
+.ficha h2 .cod { font-family: var(--mono); font-weight: 500; font-size: 15px; color: var(--acento); display: block; margin-bottom: 4px; }
+.cifras { display: flex; flex-wrap: wrap; gap: 0; border: 1px solid var(--linea); border-radius: 8px; overflow: hidden; }
+.cifras .dato { padding: 10px 16px; border-right: 1px solid var(--linea); flex: 1 1 120px; }
+.cifras .dato:last-child { border-right: 0; }
+.cifras .dato.fuerte .val { color: var(--acento); }
+.texto-largo { margin: 0; color: var(--tinta-2); max-width: 75ch; white-space: pre-line; }
+.seccion { display: grid; gap: 8px; }
+.seccion h3 { margin: 0; font-size: 12px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--tinta-3); }
+.tabla-caja { overflow-x: auto; border: 1px solid var(--linea); border-radius: 8px; }
+table { border-collapse: collapse; width: 100%; }
+th, td { padding: 7px 10px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--linea-suave); }
+th { font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--tinta-3); white-space: nowrap; }
+td.d, th.d { text-align: right; font-variant-numeric: tabular-nums; }
+td.cod { font-family: var(--mono); font-size: 12.5px; white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+tr.sub td { font-weight: 700; background: var(--linea-suave); }
+tr.subtotal td { color: var(--tinta-2); font-style: italic; }
+.enlace { border: 0; background: none; padding: 0; font: inherit; font-family: var(--mono); font-size: 12.5px; color: var(--acento); text-decoration: underline; text-underline-offset: 2px; }
+.tipo { font-size: 11px; font-weight: 700; padding: 1px 6px; border-radius: 4px; white-space: nowrap; }
+.t-MO { background: var(--mo-bg); color: var(--mo); }
+.t-MQ { background: var(--mq-bg); color: var(--mq); }
+.t-MT { background: var(--mt-bg); color: var(--mt); }
+.t-OT, .t-PC, .t-AX { background: var(--ot-bg); color: var(--ot); }
+.reparto { display: flex; height: 12px; border-radius: 3px; overflow: hidden; background: var(--linea-suave); }
+.reparto i { display: block; height: 100%; }
+.leyenda { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--tinta-2); }
+.leyenda b { font-weight: 600; color: var(--tinta); font-variant-numeric: tabular-nums; }
+.vacio { color: var(--tinta-3); font-size: 13px; }
+
+/* Recursos */
+.panel { display: grid; gap: 12px; }
+.filtros { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.filtros input { font: inherit; font-size: 13px; padding: 8px 12px; border-radius: 6px; border: 1px solid var(--linea); background: var(--superficie); color: var(--tinta); flex: 1 1 240px; min-width: 0; }
+.chip { border-radius: 999px; padding: 5px 11px; font-size: 12px; }
+.chip[aria-pressed="true"] { border-color: var(--acento); background: var(--acento-suave); }
+.totales-tipo { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 1px; background: var(--linea); border: 1px solid var(--linea); border-radius: 10px; overflow: hidden; }
+.totales-tipo .dato { background: var(--superficie); padding: 12px 16px; }
+.recursos table { min-width: 760px; }
+.recursos th { position: sticky; top: 0; background: var(--superficie); }
+.pie { color: var(--tinta-3); font-size: 12px; }
+.toast {
+  position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  background: var(--tinta); color: var(--papel); padding: 10px 16px; border-radius: 8px; font-size: 13px; max-width: calc(100% - 32px);
+}
+</style>
+</head>
+<body>
+
+<div class="envoltura">
+  <header class="cab">
+    <div class="marca">
+      <a class="volver" href="./">‹ Herramientas BC3</a>
+      <h1>Visor <span>BC3</span></h1>
+      <p>Presupuesto, descompuestos, mediciones y recursos de un archivo FIEBDC-3</p>
+    </div>
+    <div class="acciones">
+      <label class="boton" for="entrada-bc3">Abrir BC3…</label>
+      <input id="entrada-bc3" type="file" accept=".bc3,.BC3" hidden>
+      <button id="btn-excel" class="primario" type="button">Exportar a Excel</button>
+    </div>
+  </header>
+
+  <section id="barra" class="barra-archivo" aria-label="Obra">
+    <div class="obra"><span id="obra">—</span><small id="archivo"></small></div>
+    <div class="dato"><span class="rot">PEM</span><span class="val num" id="d-pem">—</span></div>
+    <div class="dato"><span class="rot">Capítulos</span><span class="val num" id="d-caps">—</span></div>
+    <div class="dato"><span class="rot">Partidas</span><span class="val num" id="d-part">—</span></div>
+    <div class="dato"><span class="rot">Recursos</span><span class="val num" id="d-rec">—</span></div>
+  </section>
+
+  <nav class="pestanas" role="tablist">
+    <button class="pestana" role="tab" aria-selected="true" data-panel="p-arbol">Presupuesto</button>
+    <button class="pestana" role="tab" aria-selected="false" data-panel="p-rec">Recursos</button>
+  </nav>
+
+  <section id="p-arbol" role="tabpanel" class="dos">
+    <div class="caja arbol-caja">
+      <div class="arbol-cab">
+        <input id="buscar" type="search" placeholder="Buscar código o texto…" aria-label="Buscar en el presupuesto">
+        <button id="plegar" type="button" title="Plegar todo">Plegar</button>
+      </div>
+      <div class="arbol" id="arbol" role="tree"></div>
+    </div>
+    <article class="caja ficha" id="ficha" aria-live="polite"></article>
+  </section>
+
+  <section id="p-rec" role="tabpanel" class="panel" hidden>
+    <div class="totales-tipo" id="rec-totales"></div>
+    <div class="filtros">
+      <input id="buscar-rec" type="search" placeholder="Buscar recurso…" aria-label="Buscar recursos">
+      <div id="rec-chips" class="filtros"></div>
+    </div>
+    <div class="caja tabla-caja recursos"><table id="tabla-rec"></table></div>
+    <p class="pie">Cantidades totales en obra: medición de cada partida × rendimiento del recurso, descendiendo por los auxiliares. Los medios auxiliares (%) se reparten como importe, sin cantidad.</p>
+  </section>
+
+  <p class="pie">Arrastra un .bc3 a cualquier parte de la página. El archivo se lee en tu navegador y no se sube a ningún sitio.</p>
+</div>
+<div id="toast" class="toast" role="status" hidden></div>
+
+<script src="lib/xlsx.full.min.js"></script>
+<script id="nucleo">
+const CP850 = "ÇüéâäàåçêëèïîìÄÅÉæÆôöòûùÿÖÜø£Ø×ƒáíóúñÑªº¿®¬½¼¡«»░▒▓│┤ÁÂÀ©╣║╗╝¢¥┐└┴┬├─┼ãÃ╚╔╩╦╠═╬¤ðÐÊËÈıÍÎÏ┘┌█▄¦Ì▀ÓßÔÒõÕµþÞÚÛÙýÝ¯´­±‗¾¶§÷¸°¨·¹³²■ ";
+
+
+// Algunos BC3 llevan el texto UTF-8 codificado dos veces ("MODIFICACIÃ“N"). Si se detecta, se deshace.
+const CP1252_ALTO = { 0x20AC: 0x80, 0x201A: 0x82, 0x0192: 0x83, 0x201E: 0x84, 0x2026: 0x85, 0x2020: 0x86, 0x2021: 0x87, 0x02C6: 0x88, 0x2030: 0x89, 0x0160: 0x8A, 0x2039: 0x8B, 0x0152: 0x8C, 0x017D: 0x8E, 0x2018: 0x91, 0x2019: 0x92, 0x201C: 0x93, 0x201D: 0x94, 0x2022: 0x95, 0x2013: 0x96, 0x2014: 0x97, 0x02DC: 0x98, 0x2122: 0x99, 0x0161: 0x9A, 0x203A: 0x9B, 0x0153: 0x9C, 0x017E: 0x9E, 0x0178: 0x9F };
+function repararDobleUTF8(texto) {
+  const m = texto.match(/Ã[\u0080-¿‘-„†-™ŒœŠšŸŽžˆ˜]/g);
+  if (!m || m.length < 3) return texto;
+  const bytes = new Uint8Array(texto.length);
+  for (let i = 0; i < texto.length; i++) {
+    const c = texto.charCodeAt(i);
+    const b = c < 0x100 ? c : CP1252_ALTO[c];
+    if (b === undefined) return texto;
+    bytes[i] = b;
+  }
+  try { return new TextDecoder("utf-8", { fatal: true }).decode(bytes); } catch (e) { return texto; }
+}
+function decodificarBC3(bytes) {
+  const r = decodificarBC3Base(bytes);
+  r.texto = repararDobleUTF8(r.texto);
+  return r;
+}
+function decodificarBC3Base(bytes) {
+  // Muchos BC3 dicen ANSI pero van en UTF-8: si decodifica limpio como UTF-8 y tiene acentos, es UTF-8
+  if (bytes.some(b => b >= 0x80)) {
+    try { return { texto: new TextDecoder("utf-8", { fatal: true }).decode(bytes), codificacion: "utf-8" }; } catch (e) { /* no es UTF-8 */ }
+  }
+  let latin = "";
+  for (let i = 0; i < Math.min(bytes.length, 4000); i++) latin += String.fromCharCode(bytes[i]);
+  let juego = "";
+  const m = latin.match(/~V\|([^~]*)/);
+  if (m) {
+    const c = m[1].split("|");
+    if (c.length > 4) juego = c[4].trim().toUpperCase();
+  }
+  if (!["850", "437", "ANSI", "8859"].includes(juego)) {
+    // Sin juego declarado (ficheros antiguos de DOS): se decide por los bytes de acentos
+    const dos = new Set([0xA0, 0xA1, 0xA2, 0xA3, 0xA4, 0xA5, 0x82, 0xA6, 0xA7]);
+    const win = new Set([0xE1, 0xE9, 0xED, 0xF3, 0xFA, 0xF1, 0xD1, 0xAA, 0xBA]);
+    let nd = 0, nw = 0;
+    for (let i = 0; i < Math.min(bytes.length, 200000); i++) { if (dos.has(bytes[i])) nd++; else if (win.has(bytes[i])) nw++; }
+    juego = nd > nw ? "850" : "ANSI";
+  }
+  if (juego === "850" || juego === "437") {
+    let s = "";
+    for (let i = 0; i < bytes.length; i++) {
+      const b = bytes[i];
+      s += b < 128 ? String.fromCharCode(b) : CP850[b - 128];
+    }
+    return { texto: s, codificacion: "cp" + juego };
+  }
+  const enc = juego === "8859" ? "iso-8859-1" : "windows-1252";
+  return { texto: new TextDecoder(enc).decode(bytes), codificacion: enc };
+}
+
+const norm = c => (c || "").trim().replace(/#+$/, "");
+const num = s => {
+  if (s == null) return null;
+  s = String(s).trim();
+  if (!s) return null;
+  const v = Number(s.replace(",", "."));
+  return Number.isFinite(v) ? v : null;
+};
+
+function leerBC3(texto, archivo, codificacion) {
+  const P = {
+    archivo, codificacion, cabecera: {}, conceptos: new Map(), mediciones: new Map(), avisos: [],
+    _lineas: null,
+  };
+  const obtener = raw => {
+    const cod = norm(raw);
+    let c = P.conceptos.get(cod);
+    if (!c) {
+      c = { codigo: cod, raw: (raw || "").trim(), unidad: "", resumen: "", precio: null, fecha: "", tipo: "", texto: "", hijos: [], definido: false };
+      P.conceptos.set(cod, c);
+    }
+    return c;
+  };
+  const campo = (cs, i) => (i < cs.length ? cs[i] : "");
+
+  // Agrupar en registros
+  const registros = [];
+  let actual = null;
+  for (const linea of texto.split(/\r?\n/)) {
+    if (linea.startsWith("~")) { if (actual !== null) registros.push(actual); actual = linea; }
+    else if (actual !== null) actual += "\n" + linea;
+  }
+  if (actual !== null) registros.push(actual);
+
+  for (const reg of registros) {
+    const tipo = reg.charAt(1).toUpperCase();
+    const cs = reg.length > 2 ? reg.slice(3).split("|") : [];
+    try {
+      if (tipo === "V") {
+        const ver = campo(cs, 1).split("\\");
+        P.cabecera = { propiedad: campo(cs, 0).trim(), version: (ver[0] || "").trim(), fecha: (ver[1] || "").trim(),
+                       programa: campo(cs, 2).trim(), cabecera: campo(cs, 3).trim(), juego: campo(cs, 4).trim() };
+      } else if (tipo === "C") {
+        const raw = campo(cs, 0).split("\\")[0].trim();
+        if (!raw) continue;
+        const c = obtener(raw);
+        c.raw = raw; c.definido = true;
+        c.unidad = campo(cs, 1).trim();
+        c.resumen = campo(cs, 2).trim();
+        const ps = campo(cs, 3).split("\\").map(num).filter(x => x !== null);
+        c.precio = ps.length ? ps[0] : null;
+        c.fecha = campo(cs, 4).split("\\")[0].trim();
+        c.tipo = campo(cs, 5).trim();
+      } else if (tipo === "D") {
+        const padre = obtener(campo(cs, 0));
+        padre.hijos = [];
+        let trozos = campo(cs, 1).split("\\"), paso = 3;
+        if (!campo(cs, 1).trim() && campo(cs, 2).trim()) { trozos = campo(cs, 2).split("\\"); paso = 4; }
+        for (let i = 0; i < trozos.length - 1; i += paso) {
+          const cod = trozos[i].trim();
+          if (!cod) continue;
+          const f = num(trozos[i + 1]), r = num(trozos[i + 2]);
+          const h = obtener(cod);
+          padre.hijos.push({ codigo: h.codigo, factor: f === null ? 1 : f, rendimiento: r === null ? 1 : r });
+        }
+      } else if (tipo === "M") {
+        const cods = campo(cs, 0).split("\\");
+        const padre = cods.length >= 2 ? norm(cods[0]) : "";
+        const hijo = cods.length >= 2 ? norm(cods[1]) : norm(cods[0]);
+        const med = { padre, hijo, total: num(campo(cs, 2)), lineas: [] };
+        const t = campo(cs, 3).split("\\");
+        for (let i = 0; i + 5 < t.length; i += 6) {
+          med.lineas.push({ tipo: t[i].trim(), comentario: t[i + 1].trim(),
+            n: num(t[i + 2]), l: num(t[i + 3]), a: num(t[i + 4]), h: num(t[i + 5]) });
+        }
+        P.mediciones.set(padre + "|" + hijo, med);
+      } else if (tipo === "T") {
+        obtener(campo(cs, 0)).texto = campo(cs, 1).trim();
+      }
+    } catch (e) {
+      P.avisos.push(`Registro ~${tipo} ilegible: ${reg.slice(0, 80)}`);
+    }
+  }
+  normalizar(P);
+  return P;
+}
+
+function normalizar(P) {
+  // Capítulos sin ~D cuyas partidas solo aparecen en ~M (ficheros antiguos): la ~M define la pertenencia
+  let enlazadas = 0;
+  for (const m of P.mediciones.values()) {
+    const cp = P.conceptos.get(m.padre);
+    if (!cp || !cp.raw.endsWith("#") || !P.conceptos.has(m.hijo)) continue;
+    if (!cp.hijos.some(h => h.codigo === m.hijo)) { cp.hijos.push({ codigo: m.hijo, factor: 1, rendimiento: m.total ?? 0 }); enlazadas++; }
+  }
+  if (enlazadas) P.avisos.push(`${enlazadas} partida(s) solo estaban enlazadas a su capítulo por la medición (~M), sin registro ~D. Se han colgado del capítulo con la medición total.`);
+  // Precio 0 en un concepto con descompuesto (CYPE lo exporta así): el precio es el del descompuesto
+  for (const c of P.conceptos.values()) if (c.precio === 0 && c.hijos.length && !c.raw.endsWith("#")) c.precio = null;
+}
+
+// Fracción que aplica un concepto %: Presto actual 0,01×2 · CYPE 0×0,02 · Presto 7 6×0,06 · otros 2×1
+function fraccionPorcentaje(p, q) {
+  if (!p) return q;
+  if (Math.abs(p) < 1) return q * p;
+  return Math.abs(q) < 1 ? q : q * p / 100;
+}
+
+const cantidad = h => h.factor * h.rendimiento;
+const esRaiz = c => c.raw.endsWith("##");
+const esCapitulo = c => c.raw.endsWith("#");
+const esPorcentaje = c => c.codigo.startsWith("%") || c.unidad.trim() === "%";
+
+function valorLinea(l, cerosVacios = false) {
+  if (["1", "2", "3"].includes(l.tipo)) return null;
+  const fs = [l.n, l.l, l.a, l.h].filter(v => v !== null && !(cerosVacios && v === 0));
+  return fs.length ? fs.reduce((a, b) => a * b, 1) : 0;
+}
+function sumaLineas(m, cerosVacios = false) {
+  if (m.lineas.some(l => l.tipo === "3")) return null;
+  const vs = m.lineas.map(l => valorLinea(l, cerosVacios)).filter(v => v !== null);
+  return vs.length ? vs.reduce((a, b) => a + b, 0) : null;
+}
+// True si las líneas solo cuadran con el total leyendo los 0 como casillas vacías (ficheros antiguos)
+function cerosComoVacios(m) {
+  const e = sumaLineas(m, false), l = sumaLineas(m, true);
+  if (m.total === null || l === null) return false;
+  const tol = Math.max(0.01, 0.005 * Math.abs(m.total));
+  return (e === null || Math.abs(e - m.total) > tol) && Math.abs(l - m.total) <= tol;
+}
+
+function raiz(P) {
+  for (const c of P.conceptos.values()) if (esRaiz(c)) return c;
+  const hijos = new Set();
+  for (const c of P.conceptos.values()) c.hijos.forEach(h => hijos.add(h.codigo));
+  const cand = [...P.conceptos.values()].filter(c => c.hijos.length && !hijos.has(c.codigo));
+  return cand.length === 1 ? cand[0] : null;
+}
+
+function precioDesc(P, cod, pila = new Set()) {
+  const c = P.conceptos.get(norm(cod));
+  if (!c || !c.hijos.length || pila.has(c.codigo)) return null;
+  const pila2 = new Set(pila); pila2.add(c.codigo);
+  let acum = 0;
+  for (const h of c.hijos) {
+    const hc = P.conceptos.get(h.codigo);
+    if (!hc) continue;
+    const p = (hc.precio !== null ? hc.precio : precioDesc(P, hc.codigo, pila2)) || 0;
+    acum += esPorcentaje(hc) ? acum * fraccionPorcentaje(p, cantidad(h)) : cantidad(h) * p;
+  }
+  return acum;
+}
+function precio(P, cod) {
+  const c = P.conceptos.get(norm(cod));
+  if (!c) return null;
+  return c.precio !== null ? c.precio : precioDesc(P, cod);
+}
+// Redondeo comercial a céntimos, misma fórmula que la versión Python
+const r2 = x => (x < 0 ? -1 : 1) * Math.floor(Math.abs(x) * 100 + 0.5 + 1e-9) / 100;
+
+function lineas(P) {
+  if (P._lineas) return P._lineas;
+  const out = [];
+  const R = raiz(P);
+  if (R) {
+    const visitar = (cap, ruta, anc, nivel) => {
+      for (const h of cap.hijos) {
+        const c = P.conceptos.get(h.codigo);
+        if (!c) continue;
+        if (esCapitulo(c)) {
+          if (anc.includes(c.codigo)) continue;
+          visitar(c, [...ruta, `${c.codigo} ${c.resumen}`.trim()], [...anc, c.codigo], nivel + 1);
+        } else {
+          const p = precio(P, c.codigo);
+          out.push({ capitulo: cap.codigo, ruta: ruta.join(" > "), codigo: c.codigo, unidad: c.unidad,
+                     resumen: c.resumen, medicion: cantidad(h), precio: p, nivel, ancestros: anc,
+                     importe: r2(cantidad(h) * (p || 0)) });
+        }
+      }
+    };
+    visitar(R, [], [R.codigo], 0);
+  }
+  P._lineas = out;
+  return out;
+}
+function capitulos(P) {
+  const out = [];
+  const R = raiz(P);
+  if (!R) return out;
+  const visitar = (cap, ruta, anc, nivel) => {
+    for (const h of cap.hijos) {
+      const c = P.conceptos.get(h.codigo);
+      if (c && esCapitulo(c) && !anc.includes(c.codigo)) {
+        const r = [...ruta, `${c.codigo} ${c.resumen}`.trim()];
+        out.push({ c, ruta: r.join(" > "), nivel: nivel + 1 });
+        visitar(c, r, [...anc, c.codigo], nivel + 1);
+      }
+    }
+  };
+  visitar(R, [], [R.codigo], 0);
+  return out;
+}
+function importeCap(P, cod) {
+  if (!P._imp) {
+    P._imp = new Map();
+    for (const l of lineas(P)) for (const a of l.ancestros) P._imp.set(a, (P._imp.get(a) || 0) + l.importe);
+  }
+  return P._imp.get(cod) || 0;
+}
+function pem(P) {
+  if (P._pem === undefined) P._pem = lineas(P).reduce((a, l) => a + l.importe, 0);
+  return P._pem;
+}
+
+
+const EJEMPLO_BC3 = String.raw`~V|EJEMPLO|FIEBDC-3/2020\28092026|Generador de pruebas|Presupuesto de prueba|ANSI|Ejemplo con errores sembrados|
+~C|OBRA##||Edificio de 12 viviendas - EJEMPLO||||
+~C|01#||Movimiento de tierras||||
+~C|02#||Cimentación||||
+~C|03#||Estructura||||
+~C|04#||Albañilería||||
+~C|05#||Carpintería exterior||||
+~C|06#||Gestión de residuos||||
+~D|OBRA##|01\1\1\02\1\1\03\1\1\04\1\1\05\1\1\06\1\1\|
+~D|01#|01.01\1\45.2\01.02\1\0\|
+~D|02#|02.01\1\32.5\02.02\1\2450\|
+~D|03#|03.01\1\620\03.02\1\12\|
+~D|04#|04.01\1\380\04.02\1\25\04.03\1\140\01.01\1\10\|
+~D|06#|06.01\1\1\|
+~C|01.01|m3|Excavación en zanjas en terreno compacto, por medios mecánicos|11.93|280926|0|
+~T|01.01|Excavación en zanjas de cimentación en terreno compacto, por medios mecánicos, incluso carga de tierras sobre camión.|
+~D|01.01|MO002\1\0.25\MQ001\1\0.15\%MA\1\2\|
+~M|01#\01.01|1\|45.2|\Zanja eje A\1\20\0.6\1.0\\Zanja eje B\1\30\0.6\1.0\\Zanja eje C\1\19\0.8\1.0\|
+~C|01.02|m2|Desbroce y limpieza del terreno|0.85|280926|0|
+~T|01.02|Desbroce y limpieza superficial del terreno con medios mecánicos.|
+~C|02.01|m3|Hormigón HA-25/B/20/IIa en zapatas|94.59|280926|0|
+~T|02.01|Hormigón armado HA-25/B/20/IIa en zapatas, vertido con bomba, vibrado y curado.|
+~D|02.01|MT001\1\1.05\MO001\1\0.3\MO002\1\0.3\MT_FALTA\1\1\|
+~M|02#\02.01|1\|32.5|\Zapatas Z1\8\1.5\1.5\0.8\\Zapatas Z2\6\1.8\1.8\0.8\|
+~C|02.02|kg|Acero B500S en armaduras|1.35|280926|0|
+~T|02.02|Acero corrugado B500S, cortado, doblado y colocado.|
+~D|02.02|MT002\1\1.05\MO001\1\0.01\|
+~C|03.01|m2|Forjado unidireccional de viguetas y bovedillas|0|280926|0|
+~T|03.01|Forjado unidireccional canto 25+5 cm.|
+~C|03.02|m3|Hormigón HA-25/B/20/IIa en zapatas|101.20|280926|0|
+~T|03.02|Hormigón armado en zapatas.|
+~C|04.01|m2|M3. Fábrica de ladrillo perforado de 1/2 pie|28.30|280926|0|
+~T|04.01|Fábrica de ladrillo cerámico perforado recibido con mortero M-5.|
+~D|04.01|MT003\1\55\MT004\1\30\MO001\1\0.6\MO002\1\0\|
+~M|04#\04.01|1\|380|\Planta baja\1\120\\3\\Remates\1\20\\1\|
+~C|04.02||Ayudas de albañilería a instalaciones|15.00|280926|0|
+~C|04.03|mts|Vierteaguas de piedra artificial|8.40|280926|0|
+~C|06.01|PA|Gestión de residuos de construcción y demolición|18000|280926|0|
+~T|06.01|Partida alzada de gestión de RCD según estudio de gestión.|
+~C|MO001|h|Oficial 1ª construcción|22.50|280926|1|
+~C|MO002|h|Peón ordinario construcción|19.80|280926|1|
+~C|MQ001|h|Retroexcavadora|45.00|280926|2|
+~C|MT001|m3|Hormigón HA-25/B/20/IIa|78.00|280926|3|
+~C|MT002|kg|Acero B500S|0.85|280926|3|
+~C|MT003|ud|Ladrillo perforado|0.22|280926|3|
+~C|MT004|kg|Mortero M-5|0.09|280926|3|
+~C|MT_SOBRANTE|ud|Material que nadie usa|3.00|280926|3|
+~C|%MA|%|Medios auxiliares|0.01|280926|0|
+`;
+
+</script>
+<script>
+/* ===================================================================== *
+ *  VISOR
+ * ===================================================================== */
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
+const fmt = (x, dec = 2) => (x === null || x === undefined) ? "—" : x.toLocaleString("es-ES", { minimumFractionDigits: dec, maximumFractionDigits: dec, useGrouping: "always" });
+const eur = x => fmt(x) + " €";
+const textoNorm = s => (s || "").toLowerCase().normalize("NFKD").replace(/[̀-ͯ]/g, "");
+
+const TIPOS = {
+  MO: { nombre: "Mano de obra", color: "var(--mo)" },
+  MQ: { nombre: "Maquinaria", color: "var(--mq)" },
+  MT: { nombre: "Materiales", color: "var(--mt)" },
+  PC: { nombre: "Medios auxiliares %", color: "var(--ot)" },
+  OT: { nombre: "Otros", color: "var(--tinta-3)" },
+};
+function tipoRecurso(c) {
+  if (!c) return "OT";
+  if (esPorcentaje(c)) return "PC";
+  if (c.tipo === "1") return "MO";
+  if (c.tipo === "2") return "MQ";
+  if (c.tipo === "3") return "MT";
+  const k = c.codigo.toUpperCase();
+  if (/^(MO|O\d)/.test(k)) return "MO";
+  if (/^(MQ|M\d)/.test(k)) return "MQ";
+  if (/^(MT|P\d)/.test(k)) return "MT";
+  return "OT";
+}
+const pastillaTipo = t => `<span class="tipo t-${t}">${t === "PC" ? "%" : t}</span>`;
+
+const estado = { P: null, esEjemplo: true, abiertos: new Set(), sel: null, busqueda: "", recursos: [], filtroTipo: null, buscaRec: "" };
+
+/* --------------------------- cálculo --------------------------- */
+function lineasDescompuesto(P, cod) {
+  // Devuelve cada línea del descompuesto con su importe, aplicando % sobre lo acumulado
+  const c = P.conceptos.get(cod);
+  if (!c) return [];
+  let acum = 0;
+  return c.hijos.map(h => {
+    const hc = P.conceptos.get(h.codigo);
+    const p = hc ? ((hc.precio !== null ? hc.precio : precioDesc(P, hc.codigo)) || 0) : 0;
+    const q = cantidad(h);
+    const importe = hc && esPorcentaje(hc) ? acum * fraccionPorcentaje(p, q) : q * p;
+    acum += importe;
+    return { h, hc, tipo: tipoRecurso(hc), cantidad: q, precio: p, importe, base: hc && esPorcentaje(hc) ? acum - importe : null };
+  });
+}
+
+function calcularRecursos(P) {
+  const acc = new Map();
+  const sumar = (hc, q, imp) => {
+    const k = hc.codigo;
+    if (!acc.has(k)) acc.set(k, { c: hc, tipo: tipoRecurso(hc), cantidad: 0, importe: 0, partidas: new Set() });
+    const r = acc.get(k); r.cantidad += q; r.importe += imp; return r;
+  };
+  const bajar = (cod, factor, partida, pila) => {
+    if (pila.has(cod)) return;
+    const pila2 = new Set(pila); pila2.add(cod);
+    for (const d of lineasDescompuesto(P, cod)) {
+      if (!d.hc) continue;
+      if (d.hc.hijos.length && !esPorcentaje(d.hc)) { bajar(d.hc.codigo, factor * d.cantidad, partida, pila2); continue; }
+      const r = sumar(d.hc, esPorcentaje(d.hc) ? 0 : factor * d.cantidad, factor * d.importe);
+      r.partidas.add(partida);
+    }
+  };
+  for (const l of lineas(P)) {
+    const c = P.conceptos.get(l.codigo);
+    if (c.hijos.length) bajar(l.codigo, l.medicion, l.codigo, new Set());
+    else {
+      const r = sumar(c, l.medicion, l.importe); r.tipo = "OT"; r.sinDesc = true; r.partidas.add(l.codigo);
+    }
+  }
+  return [...acc.values()].sort((a, b) => b.importe - a.importe);
+}
+
+/* --------------------------- carga --------------------------- */
+function cargar(texto, nombre, cod, esEjemplo) {
+  const P = leerBC3(texto, nombre, cod);
+  estado.P = P;
+  estado.esEjemplo = esEjemplo;
+  estado.abiertos = new Set(capitulos(P).filter(c => c.nivel === 1).map(c => c.c.codigo));
+  estado.busqueda = ""; $("buscar").value = "";
+  estado.recursos = calcularRecursos(P);
+  estado.filtroTipo = null; estado.buscaRec = ""; $("buscar-rec").value = "";
+  const R = raiz(P);
+  estado.sel = R ? { tipo: "cap", codigo: R.codigo } : null;
+  pintarCabecera(); pintarArbol(); pintarFicha(); pintarRecursos();
+}
+
+function pintarCabecera() {
+  const P = estado.P, R = raiz(P);
+  $("obra").innerHTML = esc(R ? (R.resumen || R.codigo) : "Sin concepto raíz") + (estado.esEjemplo ? '<span class="etiqueta-ejemplo">Ejemplo</span>' : "");
+  $("archivo").textContent = estado.esEjemplo
+    ? "Presupuesto de prueba. Abre o arrastra tu BC3 para verlo."
+    : `${P.archivo} · ${P.cabecera.programa || "programa desconocido"} · ${P.codificacion}`;
+  $("d-pem").textContent = eur(pem(P));
+  $("d-caps").textContent = capitulos(P).length;
+  $("d-part").textContent = new Set(lineas(P).map(l => l.codigo)).size;
+  $("d-rec").textContent = estado.recursos.filter(r => !r.sinDesc && r.tipo !== "PC").length;
+}
+
+/* --------------------------- árbol --------------------------- */
+function resaltar(txt, q) {
+  if (!q) return esc(txt);
+  const i = textoNorm(txt).indexOf(q);
+  if (i < 0) return esc(txt);
+  return esc(txt.slice(0, i)) + "<mark>" + esc(txt.slice(i, i + q.length)) + "</mark>" + esc(txt.slice(i + q.length));
+}
+
+function pintarArbol() {
+  const P = estado.P, R = raiz(P);
+  const q = textoNorm(estado.busqueda.trim());
+  if (!R) { $("arbol").innerHTML = `<p class="vacio" style="padding:12px">No se encuentra el concepto raíz (##).</p>`; return; }
+  const coincide = c => !q || textoNorm(c.codigo + " " + c.resumen).includes(q);
+  const html = [];
+  const tieneCoincidencia = (cap, pila = new Set()) => {
+    if (pila.has(cap.codigo)) return false;
+    const p2 = new Set(pila); p2.add(cap.codigo);
+    return cap.hijos.some(h => { const c = P.conceptos.get(h.codigo); return c && (coincide(c) || (esCapitulo(c) && tieneCoincidencia(c, p2))); });
+  };
+  const visitar = (cap, nivel, anc) => {
+    for (const h of cap.hijos) {
+      const c = P.conceptos.get(h.codigo);
+      if (!c) continue;
+      const pad = `padding-left:${12 + nivel * 16}px`;
+      if (esCapitulo(c)) {
+        if (anc.includes(c.codigo)) continue;
+        if (q && !coincide(c) && !tieneCoincidencia(c)) continue;
+        const abierto = q ? true : estado.abiertos.has(c.codigo);
+        const actual = estado.sel && estado.sel.tipo === "cap" && estado.sel.codigo === c.codigo;
+        html.push(`<button type="button" class="nodo cap" role="treeitem" aria-expanded="${abierto}" aria-current="${actual}" data-cap="${esc(c.codigo)}" style="${pad}">
+          <span class="tog">${c.hijos.length ? (abierto ? "▾" : "▸") : ""}</span><span class="cod">${resaltar(c.codigo, q)}</span>
+          <span class="txt">${resaltar(c.resumen, q)}</span><span class="imp">${fmt(importeCap(P, c.codigo), 0)}</span></button>`);
+        if (abierto) visitar(c, nivel + 1, [...anc, c.codigo]);
+      } else {
+        if (q && !coincide(c) && !coincide(cap)) continue;
+        const actual = estado.sel && estado.sel.tipo === "par" && estado.sel.codigo === c.codigo && estado.sel.capitulo === cap.codigo;
+        html.push(`<button type="button" class="nodo" role="treeitem" aria-current="${actual}" data-par="${esc(c.codigo)}" data-padre="${esc(cap.codigo)}" style="${pad}">
+          <span class="tog"></span><span class="cod">${resaltar(c.codigo, q)}</span>
+          <span class="txt">${resaltar(c.resumen, q)}</span><span class="imp">${fmt(r2(cantidad(h) * (precio(P, c.codigo) || 0)), 0)}</span></button>`);
+      }
+    }
+  };
+  const actualR = estado.sel && estado.sel.tipo === "cap" && estado.sel.codigo === R.codigo;
+  html.push(`<button type="button" class="nodo cap" role="treeitem" aria-current="${actualR}" data-cap="${esc(R.codigo)}" data-raiz="1" style="padding-left:12px">
+    <span class="tog"></span><span class="cod">${esc(R.codigo)}</span><span class="txt">${esc(R.resumen)}</span><span class="imp">${fmt(pem(P), 0)}</span></button>`);
+  visitar(R, 1, [R.codigo]);
+  $("arbol").innerHTML = html.join("") || `<p class="vacio" style="padding:12px">Nada coincide con «${esc(estado.busqueda)}».</p>`;
+  $("arbol").querySelectorAll("[data-cap]").forEach(b => b.onclick = () => {
+    const cod = b.dataset.cap;
+    if (!b.dataset.raiz) {
+      const yaSel = estado.sel && estado.sel.tipo === "cap" && estado.sel.codigo === cod;
+      if (yaSel || !estado.abiertos.has(cod)) estado.abiertos.has(cod) && yaSel ? estado.abiertos.delete(cod) : estado.abiertos.add(cod);
+    }
+    seleccionar({ tipo: "cap", codigo: cod });
+  });
+  $("arbol").querySelectorAll("[data-par]").forEach(b => b.onclick = () => seleccionar({ tipo: "par", codigo: b.dataset.par, capitulo: b.dataset.padre }));
+}
+
+function seleccionar(sel, desdeFicha = false) {
+  estado.sel = sel;
+  if (sel.capitulo) {
+    // abre los capítulos por encima para que la selección se vea en el árbol
+    const l = lineas(estado.P).find(x => x.codigo === sel.codigo && x.capitulo === sel.capitulo);
+    if (l) l.ancestros.forEach(a => estado.abiertos.add(a));
+  }
+  mostrar("p-arbol");
+  pintarArbol(); pintarFicha();
+  if (desdeFicha) $("ficha").scrollIntoView?.({ block: "start", behavior: "smooth" });
+  const actual = $("arbol").querySelector('[aria-current="true"]');
+  if (actual) actual.scrollIntoView?.({ block: "nearest" });
+}
+
+/* --------------------------- ficha --------------------------- */
+function ancestrosCap(cod) {
+  const P = estado.P, R = raiz(P);
+  let hallado = [];
+  const dfs = (cap, ruta) => {
+    for (const h of cap.hijos) {
+      const c = P.conceptos.get(h.codigo);
+      if (!c || !esCapitulo(c) || ruta.includes(c.codigo)) continue;
+      if (c.codigo === cod) { hallado = ruta; return true; }
+      if (dfs(c, [...ruta, c.codigo])) return true;
+    }
+    return false;
+  };
+  if (R) dfs(R, [R.codigo]);
+  return hallado;
+}
+function migas(anc) {
+  const P = estado.P;
+  return `<nav class="migas">${anc.map((a, i) => {
+    const c = P.conceptos.get(a);
+    return `${i ? "<span>›</span>" : ""}<button type="button" data-ir-cap="${esc(a)}">${esc(i === 0 ? (c ? c.resumen || a : a) : a + " " + (c ? c.resumen : ""))}</button>`;
+  }).join("")}</nav>`;
+}
+
+function repartoTipos(items) {
+  const tot = items.reduce((a, x) => a + x.importe, 0);
+  if (tot <= 0) return "";
+  const por = {};
+  items.forEach(x => por[x.tipo] = (por[x.tipo] || 0) + x.importe);
+  const ks = Object.keys(TIPOS).filter(k => por[k] > 0);
+  return `<div class="reparto" aria-hidden="true">${ks.map(k => `<i style="width:${(por[k] / tot * 100).toFixed(2)}%;background:${TIPOS[k].color}"></i>`).join("")}</div>
+    <div class="leyenda">${ks.map(k => `<span>${TIPOS[k].nombre} <b>${eur(por[k])}</b> · ${fmt(por[k] / tot * 100, 1)} %</span>`).join("")}</div>`;
+}
+
+function fichaCapitulo(cod) {
+  const P = estado.P, c = P.conceptos.get(cod), R = raiz(P);
+  const esR = R && R.codigo === cod;
+  const imp = esR ? pem(P) : importeCap(P, cod);
+  const total = pem(P);
+  const info = esR ? null : capitulos(P).find(x => x.c.codigo === cod);
+  const anc = esR ? [] : ancestrosCap(cod);
+  const filas = c.hijos.map(h => {
+    const hc = P.conceptos.get(h.codigo);
+    if (!hc) return "";
+    if (esCapitulo(hc)) {
+      const ic = importeCap(P, hc.codigo);
+      return `<tr><td class="cod"><button type="button" class="enlace" data-ir-cap="${esc(hc.codigo)}">${esc(hc.codigo)}</button></td><td></td><td><b>${esc(hc.resumen)}</b></td><td class="d"></td><td class="d"></td><td class="d">${fmt(ic)}</td><td class="d">${fmt(imp ? ic / imp * 100 : 0, 1)} %</td></tr>`;
+    }
+    const p = precio(P, hc.codigo) || 0, q = cantidad(h), i = r2(q * p);
+    return `<tr><td class="cod"><button type="button" class="enlace" data-ir-par="${esc(hc.codigo)}" data-padre="${esc(cod)}">${esc(hc.codigo)}</button></td><td>${esc(hc.unidad)}</td><td>${esc(hc.resumen)}</td><td class="d">${fmt(q)}</td><td class="d">${fmt(p)}</td><td class="d">${fmt(i)}</td><td class="d">${fmt(imp ? i / imp * 100 : 0, 1)} %</td></tr>`;
+  }).join("");
+  return `${anc.length ? migas(anc) : ""}
+    <h2><span class="cod">${esc(cod)}</span>${esc(c.resumen || (esR ? "Presupuesto" : ""))}</h2>
+    <div class="cifras">
+      <div class="dato fuerte"><span class="rot">${esR ? "PEM" : "Importe"}</span><span class="val num">${eur(imp)}</span></div>
+      ${esR ? "" : `<div class="dato"><span class="rot">% del PEM</span><span class="val num">${fmt(total ? imp / total * 100 : 0, 1)} %</span></div>`}
+      <div class="dato"><span class="rot">Contenido</span><span class="val num">${c.hijos.length}</span></div>
+    </div>
+    ${c.texto ? `<p class="texto-largo">${esc(c.texto)}</p>` : ""}
+    <div class="seccion"><h3>${esR ? "Capítulos" : "Contenido del capítulo"}</h3>
+      ${c.hijos.length ? `<div class="tabla-caja"><table>
+        <thead><tr><th>Código</th><th>Ud</th><th>Resumen</th><th class="d">Medición</th><th class="d">Precio</th><th class="d">Importe</th><th class="d">%</th></tr></thead>
+        <tbody>${filas}<tr class="sub"><td></td><td></td><td>Total ${esc(cod)}</td><td></td><td></td><td class="d">${fmt(imp)}</td><td></td></tr></tbody></table></div>`
+        : `<p class="vacio">Capítulo vacío.</p>`}
+    </div>`;
+}
+
+function fichaConcepto(cod, capitulo) {
+  const P = estado.P, c = P.conceptos.get(cod);
+  if (!c) return `<p class="vacio">El concepto ${esc(cod)} no existe en el BC3.</p>`;
+  const linea = capitulo ? lineas(P).find(l => l.codigo === cod && l.capitulo === capitulo) : null;
+  const apariciones = lineas(P).filter(l => l.codigo === cod);
+  const p = precio(P, cod);
+  const desc = lineasDescompuesto(P, cod);
+  const calc = desc.length ? desc.reduce((a, d) => a + d.importe, 0) : null;
+  const med = capitulo ? P.mediciones.get(capitulo + "|" + cod) : null;
+  const usadoEn = [...P.conceptos.values()].filter(x => !esCapitulo(x) && x.hijos.some(h => h.codigo === cod));
+
+  let s = linea ? migas(linea.ancestros) : "";
+  s += `<h2><span class="cod">${esc(cod)} ${!linea && !apariciones.length ? pastillaTipo(tipoRecurso(c)) : ""}</span>${esc(c.resumen || "(sin resumen)")}</h2>`;
+  s += `<div class="cifras">
+    <div class="dato"><span class="rot">Unidad</span><span class="val">${esc(c.unidad) || "—"}</span></div>
+    <div class="dato"><span class="rot">Precio</span><span class="val num">${eur(p)}</span></div>
+    ${linea ? `<div class="dato"><span class="rot">Medición</span><span class="val num">${fmt(linea.medicion)}</span></div>
+               <div class="dato fuerte"><span class="rot">Importe</span><span class="val num">${eur(linea.importe)}</span></div>` : ""}
+  </div>`;
+  if (c.texto) s += `<p class="texto-largo">${esc(c.texto)}</p>`;
+
+  if (desc.length) {
+    s += `<div class="seccion"><h3>Descompuesto</h3>
+      <div class="tabla-caja"><table>
+      <thead><tr><th>Tipo</th><th>Código</th><th>Ud</th><th>Resumen</th><th class="d">Rend.</th><th class="d">Precio</th><th class="d">Importe</th></tr></thead><tbody>
+      ${desc.map(d => `<tr>
+        <td>${pastillaTipo(d.tipo)}</td>
+        <td class="cod">${d.hc ? `<button type="button" class="enlace" data-ir-con="${esc(d.h.codigo)}">${esc(d.h.codigo)}</button>` : esc(d.h.codigo)}</td>
+        <td>${esc(d.hc ? d.hc.unidad : "")}</td>
+        <td>${esc(d.hc ? d.hc.resumen : "(no definido en el BC3)")}${d.base !== null ? ` <span class="vacio">sobre ${fmt(d.base)}</span>` : ""}</td>
+        <td class="d">${fmt(d.cantidad, 3)}</td><td class="d">${fmt(d.precio)}</td><td class="d">${fmt(d.importe)}</td></tr>`).join("")}
+      <tr class="sub"><td></td><td></td><td></td><td>Suma del descompuesto</td><td></td><td></td><td class="d">${fmt(calc)}</td></tr>
+      ${c.precio !== null && Math.abs(c.precio - calc) > 0.01 ? `<tr class="subtotal"><td></td><td></td><td></td><td>Precio declarado en el BC3 (diferencia ${fmt(c.precio - calc)} €)</td><td></td><td></td><td class="d">${fmt(c.precio)}</td></tr>` : ""}
+      </tbody></table></div>
+      ${repartoTipos(desc.filter(d => d.tipo !== "PC"))}
+    </div>`;
+  } else if (linea) {
+    s += `<div class="seccion"><h3>Descompuesto</h3><p class="vacio">Sin descompuesto: precio cerrado de ${eur(p)} / ${esc(c.unidad) || "ud"}.</p></div>`;
+  }
+
+  if (med && med.lineas.length) {
+    const cv = cerosComoVacios(med);
+    const suma = sumaLineas(med, cv);
+    s += `<div class="seccion"><h3>Medición detallada</h3><div class="tabla-caja"><table>
+      <thead><tr><th>Comentario</th><th class="d">Uds</th><th class="d">Longitud</th><th class="d">Anchura</th><th class="d">Altura</th><th class="d">Parcial</th></tr></thead><tbody>
+      ${med.lineas.map(l => {
+        const v = valorLinea(l, cv);
+        const sub = ["1", "2"].includes(l.tipo);
+        return `<tr class="${sub ? "subtotal" : ""}"><td>${esc(l.comentario || (sub ? "Subtotal" : l.tipo === "3" ? "Expresión" : ""))}</td>
+          <td class="d">${l.n === null ? "" : fmt(l.n, 2)}</td><td class="d">${l.l === null ? "" : fmt(l.l, 2)}</td>
+          <td class="d">${l.a === null ? "" : fmt(l.a, 2)}</td><td class="d">${l.h === null ? "" : fmt(l.h, 2)}</td>
+          <td class="d">${v === null ? "" : fmt(v, 2)}</td></tr>`;
+      }).join("")}
+      ${cv ? `<tr class="subtotal"><td colspan="6">Los 0 de este archivo se leen como casillas vacías (convención de programas antiguos).</td></tr>` : ""}
+      <tr class="sub"><td>Total medición</td><td></td><td></td><td></td><td></td><td class="d">${fmt(med.total)}</td></tr>
+      ${suma !== null && med.total !== null && Math.abs(suma - med.total) > 0.01 ? `<tr class="subtotal"><td>Las líneas suman ${fmt(suma, 3)}: no cuadra con el total</td><td></td><td></td><td></td><td></td><td></td></tr>` : ""}
+      </tbody></table></div></div>`;
+  } else if (linea) {
+    s += `<div class="seccion"><h3>Medición detallada</h3><p class="vacio">Medición directa de ${fmt(linea.medicion)} ${esc(c.unidad)}, sin líneas de detalle.</p></div>`;
+  }
+
+  if (apariciones.length > 1 || (!linea && apariciones.length)) {
+    s += `<div class="seccion"><h3>Aparece en ${apariciones.length} capítulo${apariciones.length > 1 ? "s" : ""}</h3><div class="tabla-caja"><table>
+      <thead><tr><th>Capítulo</th><th class="d">Medición</th><th class="d">Importe</th></tr></thead><tbody>
+      ${apariciones.map(a => `<tr><td><button type="button" class="enlace" data-ir-par="${esc(a.codigo)}" data-padre="${esc(a.capitulo)}">${esc(a.capitulo)}</button> ${esc(a.ruta.split(" > ").pop().replace(/^\S+\s/, ""))}</td><td class="d">${fmt(a.medicion)}</td><td class="d">${fmt(a.importe)}</td></tr>`).join("")}
+      </tbody></table></div></div>`;
+  }
+
+  if (usadoEn.length && !linea) {
+    const rec = estado.recursos.find(r => r.c.codigo === cod);
+    s += `<div class="seccion"><h3>Se usa en ${usadoEn.length} descompuesto${usadoEn.length > 1 ? "s" : ""}${rec && rec.tipo !== "PC" ? ` · ${fmt(rec.cantidad, 2)} ${esc(c.unidad)} en toda la obra` : ""}</h3><div class="tabla-caja"><table>
+      <thead><tr><th>Código</th><th>Resumen</th><th class="d">Rend.</th></tr></thead><tbody>
+      ${usadoEn.map(u => {
+        const h = u.hijos.find(x => x.codigo === cod);
+        const ap = lineas(P).find(l => l.codigo === u.codigo);
+        return `<tr><td class="cod"><button type="button" class="enlace" ${ap ? `data-ir-par="${esc(u.codigo)}" data-padre="${esc(ap.capitulo)}"` : `data-ir-con="${esc(u.codigo)}"`}>${esc(u.codigo)}</button></td><td>${esc(u.resumen)}</td><td class="d">${fmt(cantidad(h), 3)}</td></tr>`;
+      }).join("")}
+      </tbody></table></div></div>`;
+  }
+  return s;
+}
+
+function pintarFicha() {
+  const f = $("ficha"), sel = estado.sel;
+  if (!sel) { f.innerHTML = `<p class="vacio">Elige un capítulo o una partida en el árbol.</p>`; return; }
+  f.innerHTML = sel.tipo === "cap" ? fichaCapitulo(sel.codigo) : fichaConcepto(sel.codigo, sel.capitulo);
+  f.querySelectorAll("[data-ir-cap]").forEach(b => b.onclick = () => { estado.abiertos.add(b.dataset.irCap); seleccionar({ tipo: "cap", codigo: b.dataset.irCap }, true); });
+  f.querySelectorAll("[data-ir-par]").forEach(b => b.onclick = () => seleccionar({ tipo: "par", codigo: b.dataset.irPar, capitulo: b.dataset.padre }, true));
+  f.querySelectorAll("[data-ir-con]").forEach(b => b.onclick = () => seleccionar({ tipo: "con", codigo: b.dataset.irCon }, true));
+}
+
+/* --------------------------- recursos --------------------------- */
+function pintarRecursos() {
+  const recs = estado.recursos;
+  const por = {};
+  recs.forEach(r => por[r.tipo] = (por[r.tipo] || 0) + r.importe);
+  const total = recs.reduce((a, r) => a + r.importe, 0);
+  $("rec-totales").innerHTML = Object.keys(TIPOS).filter(k => por[k]).map(k =>
+    `<div class="dato"><span class="rot">${TIPOS[k].nombre}${k === "OT" ? " (partidas sin descomponer)" : ""}</span><span class="val num">${eur(por[k])}</span><span class="vacio">${fmt(total ? por[k] / total * 100 : 0, 1)} % del total</span></div>`).join("");
+  $("rec-chips").innerHTML = [null, ...Object.keys(TIPOS).filter(k => por[k])].map(k =>
+    `<button type="button" class="chip" data-tipo="${k || ""}" aria-pressed="${estado.filtroTipo === k}">${k ? TIPOS[k].nombre : "Todos"}</button>`).join("");
+  $("rec-chips").querySelectorAll("button").forEach(b => b.onclick = () => { estado.filtroTipo = b.dataset.tipo || null; pintarRecursos(); });
+
+  const q = textoNorm(estado.buscaRec.trim());
+  const vis = recs.filter(r => (!estado.filtroTipo || r.tipo === estado.filtroTipo) && (!q || textoNorm(r.c.codigo + " " + r.c.resumen).includes(q)));
+  const max = Math.max(...vis.map(r => r.importe), 1);
+  $("tabla-rec").innerHTML = `<thead><tr><th>Tipo</th><th>Código</th><th>Ud</th><th>Resumen</th><th class="d">Precio</th><th class="d">Cantidad en obra</th><th class="d">Importe</th><th style="width:120px"></th><th class="d">Partidas</th></tr></thead><tbody>
+    ${vis.slice(0, 600).map(r => `<tr>
+      <td>${pastillaTipo(r.tipo)}</td>
+      <td class="cod"><button type="button" class="enlace" data-ir-con="${esc(r.c.codigo)}">${esc(r.c.codigo)}</button></td>
+      <td>${esc(r.c.unidad)}</td><td>${esc(r.c.resumen)}</td>
+      <td class="d">${r.tipo === "PC" ? "—" : fmt(precio(estado.P, r.c.codigo))}</td>
+      <td class="d">${r.tipo === "PC" ? "—" : fmt(r.cantidad)}</td>
+      <td class="d">${fmt(r.importe)}</td>
+      <td><div class="reparto"><i style="width:${(r.importe / max * 100).toFixed(1)}%;background:${TIPOS[r.tipo].color}"></i></div></td>
+      <td class="d">${r.partidas.size}</td></tr>`).join("") || `<tr><td colspan="9" class="vacio">Ningún recurso coincide.</td></tr>`}
+    ${vis.length > 600 ? `<tr><td colspan="9" class="vacio">Se muestran los 600 recursos de más importe de ${fmt(vis.length, 0)}. Busca o filtra por tipo para ver el resto; el Excel los lleva todos.</td></tr>` : ""}
+    </tbody>`;
+  $("tabla-rec").querySelectorAll("[data-ir-con]").forEach(b => b.onclick = () => {
+    const cod = b.dataset.irCon;
+    const ap = lineas(estado.P).find(l => l.codigo === cod);
+    seleccionar(ap ? { tipo: "par", codigo: cod, capitulo: ap.capitulo } : { tipo: "con", codigo: cod }, true);
+  });
+}
+
+/* --------------------------- navegación --------------------------- */
+function mostrar(id) {
+  document.querySelectorAll(".pestana").forEach(t => t.setAttribute("aria-selected", String(t.dataset.panel === id)));
+  document.querySelectorAll("[role=tabpanel]").forEach(p => p.hidden = p.id !== id);
+}
+document.querySelectorAll(".pestana").forEach(t => t.onclick = () => mostrar(t.dataset.panel));
+$("buscar").addEventListener("input", e => { estado.busqueda = e.target.value; pintarArbol(); });
+$("buscar-rec").addEventListener("input", e => { estado.buscaRec = e.target.value; pintarRecursos(); });
+$("plegar").onclick = () => { estado.abiertos.clear(); pintarArbol(); };
+
+function toast(msg) {
+  const t = $("toast"); t.textContent = msg; t.hidden = false;
+  clearTimeout(toast._t); toast._t = setTimeout(() => t.hidden = true, 3500);
+}
+async function abrirArchivo(file) {
+  if (!file) return;
+  if (!/\.bc3$/i.test(file.name)) { toast(`«${file.name}» no es un .bc3. Exporta el presupuesto desde Presto en formato BC3.`); return; }
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const { texto, codificacion } = decodificarBC3(bytes);
+  cargar(texto, file.name, codificacion, false);
+  toast(`${file.name} cargado`);
+}
+$("entrada-bc3").addEventListener("change", e => { abrirArchivo(e.target.files[0]); e.target.value = ""; });
+const barra = $("barra");
+["dragenter", "dragover"].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); barra.classList.add("encima"); }));
+["dragleave", "drop"].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); if (ev === "drop" || e.target === document.documentElement) barra.classList.remove("encima"); }));
+document.addEventListener("drop", e => abrirArchivo(e.dataTransfer.files[0]));
+
+/* --------------------------- exportar --------------------------- */
+function construirExcel() {
+  const P = estado.P;
+  const wb = XLSX.utils.book_new();
+  // Presupuesto con descompuestos
+  const filas = [["Capítulo", "Código", "Tipo", "Ud", "Resumen", "Medición / Rend.", "Precio (€)", "Importe (€)"]];
+  let prev = null;
+  for (const l of lineas(P)) {
+    if (l.ruta !== prev) { prev = l.ruta; filas.push([l.ruta]); }
+    filas.push([l.capitulo, l.codigo, "Partida", l.unidad, l.resumen, l.medicion, l.precio || 0, l.importe]);
+    for (const d of lineasDescompuesto(P, l.codigo))
+      filas.push(["", "   " + d.h.codigo, d.tipo, d.hc ? d.hc.unidad : "", d.hc ? d.hc.resumen : "", d.cantidad, d.precio, r2(d.importe)]);
+  }
+  filas.push([], ["", "", "", "", "TOTAL PEM", "", "", r2(pem(P))]);
+  const ws1 = XLSX.utils.aoa_to_sheet(filas);
+  ws1["!cols"] = [10, 14, 8, 6, 60, 14, 12, 14].map(w => ({ wch: w }));
+  // Recursos
+  const rec = [["Tipo", "Código", "Ud", "Resumen", "Precio (€)", "Cantidad en obra", "Importe (€)", "Nº partidas"],
+    ...estado.recursos.map(r => [TIPOS[r.tipo].nombre, r.c.codigo, r.c.unidad, r.c.resumen,
+      r.tipo === "PC" ? "" : (precio(P, r.c.codigo) || 0), r.tipo === "PC" ? "" : r2(r.cantidad), r2(r.importe), r.partidas.size])];
+  const ws2 = XLSX.utils.aoa_to_sheet(rec);
+  ws2["!cols"] = [18, 14, 6, 50, 12, 16, 14, 11].map(w => ({ wch: w }));
+  ws2["!autofilter"] = { ref: `A1:H${rec.length}` };
+  XLSX.utils.book_append_sheet(wb, ws1, "Presupuesto");
+  XLSX.utils.book_append_sheet(wb, ws2, "Recursos");
+  return XLSX.write(wb, { bookType: "xlsx", type: "array" });
+}
+function capacidadDescargas() {
+  if (!(window.claude && typeof window.claude.use === "function")) return Promise.resolve(null);
+  return window.claude.use("downloads").catch(() => null);
+}
+setTimeout(capacidadDescargas, 0);
+$("btn-excel").addEventListener("click", async () => {
+  if (typeof XLSX === "undefined") { toast("No se ha podido cargar la librería de Excel (lib/xlsx.full.min.js)."); return; }
+  const nombre = estado.P.archivo.replace(/\.bc3$/i, "") + "_visor.xlsx";
+  let blob;
+  try { blob = new Blob([construirExcel()], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }); }
+  catch (e) { toast("No se ha podido generar el Excel: " + e.message); return; }
+  const dl = await capacidadDescargas();
+  if (dl) {
+    try { await dl.save({ filename: nombre, data: blob }); toast(`Guardado ${nombre}`); }
+    catch (e) { if (e && e.code !== "declined") toast(e && e.code === "rate_limited" ? "Ya hay una descarga pendiente de confirmar." : "No se ha podido guardar el archivo en esta vista."); }
+    return;
+  }
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = nombre;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+});
+
+cargar(EJEMPLO_BC3, "presupuesto_ejemplo.bc3", "windows-1252", true);
+</script>
+
+</body>
+</html>
