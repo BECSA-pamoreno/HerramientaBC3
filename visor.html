@@ -8,7 +8,7 @@
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="description" content="Visor de presupuestos BC3: capítulos, partidas, descompuestos, mediciones y recursos.">
+<meta name="description" content="Visor de presupuestos BC3: capítulos, partidas, descompuestos, mediciones y recursos. Exporta a Excel en formato Presto.">
 <title>Visor BC3</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..125,400..800&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
@@ -78,6 +78,23 @@ button, .boton {
 button:hover, .boton:hover { border-color: var(--acento); }
 button:focus-visible, .boton:focus-visible, input:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
 .primario { background: var(--acento); border-color: var(--acento); color: var(--superficie); }
+.exportar { position: relative; }
+.exportar > summary { list-style: none; }
+.exportar > summary::-webkit-details-marker { display: none; }
+.exportar > summary::after { content: "▾"; font-size: 11px; margin-left: 2px; }
+.exportar .menu {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 20; width: min(340px, calc(100vw - 32px));
+  background: var(--superficie); border: 1px solid var(--linea); border-radius: 10px; padding: 6px;
+  box-shadow: 0 8px 28px rgba(22, 34, 46, .16); display: grid; gap: 2px;
+}
+.exportar .menu button {
+  border: 0; border-radius: 6px; background: none; text-align: left; padding: 9px 10px;
+  display: grid; gap: 2px; font-weight: 400; width: 100%;
+}
+.exportar .menu button:hover, .exportar .menu button:focus-visible { background: var(--acento-suave); }
+.exportar .menu b { font-weight: 700; font-size: 13px; }
+.exportar .menu span { font-size: 12px; color: var(--tinta-2); }
+.exportar .menu button[disabled] { opacity: .5; }
 
 .barra-archivo {
   border: 1.5px dashed var(--linea); border-radius: 10px; background: var(--superficie);
@@ -188,7 +205,14 @@ tr.subtotal td { color: var(--tinta-2); font-style: italic; }
     <div class="acciones">
       <label class="boton" for="entrada-bc3">Abrir BC3…</label>
       <input id="entrada-bc3" type="file" accept=".bc3,.BC3" hidden>
-      <button id="btn-excel" class="primario" type="button">Exportar a Excel</button>
+      <details class="exportar" id="menu-exportar">
+        <summary class="boton primario">Exportar a Excel</summary>
+        <div class="menu" role="menu">
+          <button type="button" role="menuitem" data-exportar="presupuesto"><b>Presupuesto con mediciones</b><span>Formato Presto: capítulos, partidas, líneas de medición y precios</span></button>
+          <button type="button" role="menuitem" data-exportar="mediciones"><b>Mediciones sin precios</b><span>Formato Presto con los precios a 0, para pedir ofertas</span></button>
+          <button type="button" role="menuitem" data-exportar="recursos"><b>Recursos de la obra</b><span>Mano de obra, maquinaria y materiales con cantidades totales</span></button>
+        </div>
+      </details>
     </div>
   </header>
 
@@ -230,7 +254,7 @@ tr.subtotal td { color: var(--tinta-2); font-style: italic; }
 </div>
 <div id="toast" class="toast" role="status" hidden></div>
 
-<script src="lib/xlsx.full.min.js"></script>
+<script src="lib/exceljs.min.js"></script>
 <script id="nucleo">
 const CP850 = "ÇüéâäàåçêëèïîìÄÅÉæÆôöòûùÿÖÜø£Ø×ƒáíóúñÑªº¿®¬½¼¡«»░▒▓│┤ÁÂÀ©╣║╗╝¢¥┐└┴┬├─┼ãÃ╚╔╩╦╠═╬¤ðÐÊËÈıÍÎÏ┘┌█▄¦Ì▀ÓßÔÒõÕµþÞÚÛÙýÝ¯´­±‗¾¶§÷¸°¨·¹³²■ ";
 
@@ -441,7 +465,10 @@ function precioDesc(P, cod, pila = new Set()) {
 function precio(P, cod) {
   const c = P.conceptos.get(norm(cod));
   if (!c) return null;
-  return c.precio !== null ? c.precio : precioDesc(P, cod);
+  if (c.precio !== null) return c.precio;
+  const calc = precioDesc(P, cod);
+  // Como Presto: el precio que sale del descompuesto se redondea a céntimos
+  return calc === null ? null : r2(calc);
 }
 // Redondeo comercial a céntimos, misma fórmula que la versión Python
 const r2 = x => (x < 0 ? -1 : 1) * Math.floor(Math.abs(x) * 100 + 0.5 + 1e-9) / 100;
@@ -551,6 +578,227 @@ const EJEMPLO_BC3 = String.raw`~V|EJEMPLO|FIEBDC-3/2020\28092026|Generador de pr
 ~C|%MA|%|Medios auxiliares|0.01|280926|0|
 `;
 
+</script>
+<script id="exportar-presto">
+/* ===================================================================== *
+ *  EXPORTACIÓN A EXCEL EN FORMATO PRESTO
+ *  Reproduce la hoja "Presupuesto" que saca Presto a Excel: capítulos con
+ *  color por nivel, partidas, líneas de medición (N × Longitud × Anchura ×
+ *  Altura), filas "Total" con fórmulas y separadores grises.
+ *  Necesita del parser: raiz, esCapitulo, precio, cantidad, r2, P.mediciones.
+ * ===================================================================== */
+const PRESTO = {
+  fuente: "Aptos Narrow",
+  magenta: "FFFF40FF",                  // Presto marca así las celdas con fórmula
+  nivel: ["FFBED2B7", "FFCADAC4", "FFD6E2D2", "FFE2EADF", "FFEEF2EC"],
+  partida: "FFFFEDDB",
+  separador: "FFC0C0C0",
+  anchos: { A: 11.1, B: 6.6, C: 6.7, D: 33.1, E: 71.7, F: 13.4, G: 8.4, H: 8.1, I: 7.7, J: 23.8, K: 8.4, L: 9.4, M: 11.5, N: 4.1 },   // L y M más anchas que en Presto: con precios reales no caben en 5,2
+  nf: { texto: "@", n: "#,##0.0?????????", dim: "#,##0.000", cant: "#,##0.000", cantCap: "#,##0", eur: "#,##0.00" },
+  caracteresPorLinea: 50,               // alto de fila del resumen; calibrado con un Excel de Presto (54) y con margen
+  altoLinea: 10.8,
+  maxFormula: 8000,
+};
+
+function lineasTexto(t, ancho) {
+  // Cuenta las líneas que ocupa un texto con ajuste por palabras
+  let n = 0, actual = 0;
+  for (const p of String(t || "").split(/\s+/).filter(Boolean)) {
+    let largo = p.length;
+    if (actual === 0) { n++; while (largo > ancho) { n++; largo -= ancho; } actual = largo; }
+    else if (actual + 1 + largo <= ancho) actual += 1 + largo;
+    else { n++; while (largo > ancho) { n++; largo -= ancho; } actual = largo; }
+  }
+  return Math.max(1, n);
+}
+
+// Valor de una línea de medición con la fórmula de Presto: los 0 cuentan como casilla vacía
+function valorLineaPresto(v) {
+  const fs = [v.n, v.l, v.a, v.h].map(x => x || 0);
+  if (!fs.some(x => x !== 0)) return 0;
+  return fs.reduce((a, x) => a * (x === 0 ? 1 : x), 1);
+}
+
+function libroPresto(P, ExcelJS, opciones = {}) {
+  const conPrecios = opciones.conPrecios !== false;
+  const R = raiz(P);
+  if (!R) throw new Error("El BC3 no tiene concepto raíz (##)");
+
+  const wb = new ExcelJS.Workbook();
+  wb.creator = "Herramientas BC3";
+  wb.calcProperties.fullCalcOnLoad = true;
+  const ws = wb.addWorksheet("Hoja1", { views: [{ state: "frozen", ySplit: 3, activeCell: "A4" }] });
+  for (const [col, w] of Object.entries(PRESTO.anchos)) ws.getColumn(col).width = w;
+
+  const fuente = (extra = {}) => ({ name: PRESTO.fuente, size: 8, ...extra });
+  const relleno = argb => ({ type: "pattern", pattern: "solid", fgColor: { argb } });
+  const arriba = { vertical: "top" };
+  let fila = 0;
+
+  const celda = (r, col, valor, { nf = null, negrita = false, formula = false, relleno: rl = null, ajuste = false } = {}) => {
+    const c = ws.getCell(`${col}${r}`);
+    c.value = valor;
+    c.font = fuente({ bold: negrita, ...(formula ? { color: { argb: PRESTO.magenta } } : {}) });
+    c.alignment = ajuste ? { vertical: "top", wrapText: true } : arriba;
+    if (nf) c.numFmt = nf;
+    if (rl) c.fill = relleno(rl);
+    return c;
+  };
+  const f = (formula, result) => ({ formula, result });
+  const nueva = () => ++fila;
+  const altoResumen = (r, texto) => {
+    const n = lineasTexto(texto, PRESTO.caracteresPorLinea);
+    if (n > 1) ws.getRow(r).height = r2(n * PRESTO.altoLinea * 100) / 100;
+  };
+  const separador = () => {
+    const r = nueva();
+    ws.getRow(r).height = 1.05;
+    for (const col of "ABCDEFGHIJKLM") ws.getCell(`${col}${r}`).fill = relleno(PRESTO.separador);
+  };
+  const sumaDeFilas = (filas, valores) => {
+    const total = valores.reduce((a, b) => a + b, 0);
+    if (!filas.length) return 0;
+    const txt = filas.map(r => `M${r}`).join("+");
+    return txt.length <= PRESTO.maxFormula ? f(txt, total) : r2(total);
+  };
+
+  // Cabecera
+  nueva(); celda(1, "A", R.resumen || R.codigo, { negrita: true }).font = { name: PRESTO.fuente, size: 10, bold: true };
+  nueva(); celda(2, "A", "Presupuesto").font = { name: PRESTO.fuente, size: 14, bold: true };
+  ws.getRow(2).height = 18;
+  nueva();
+  ["Código", "Nat", "Ud", "Resumen", "Comentario", "N", "Longitud", "Anchura", "Altura", "Cantidad", "CanPres", "Pres", "ImpPres"].forEach((t, i) => {
+    const c = ws.getCell(3, i + 1);
+    c.value = t;
+    c.font = { name: PRESTO.fuente, size: 10, bold: true, italic: true };
+    c.alignment = i === 3 ? { vertical: "top", wrapText: true } : arriba;
+  });
+
+  // Devuelve { fila de cabecera, importe }
+  function partida(c, cap, h) {
+    const med = P.mediciones.get(cap.codigo + "|" + c.codigo);
+    const lineas = med ? med.lineas : [];
+    const pu = conPrecios ? r2(precio(P, c.codigo) || 0) : 0;
+    const cab = nueva();
+    celda(cab, "A", c.codigo, { nf: PRESTO.nf.texto, relleno: PRESTO.partida });
+    celda(cab, "B", "Partida", { nf: PRESTO.nf.texto });
+    celda(cab, "C", c.unidad || "", { nf: PRESTO.nf.texto });
+    celda(cab, "D", c.resumen || "", { nf: PRESTO.nf.texto, ajuste: true });
+    altoResumen(cab, c.resumen);
+
+    if (!lineas.length) {
+      const q = cantidad(h);
+      const imp = r2(q * pu);
+      celda(cab, "K", q, { nf: PRESTO.nf.cant });
+      celda(cab, "L", pu, { nf: PRESTO.nf.eur });
+      celda(cab, "M", f(`ROUND(K${cab}*L${cab},2)`, imp), { nf: PRESTO.nf.eur, formula: true });
+      return { fila: cab, importe: imp };
+    }
+
+    let evaluable = true, primera = 0, ultima = 0, suma = 0;
+    for (const l of lineas) {
+      const r = nueva();
+      if (!primera) primera = r;
+      ultima = r;
+      celda(r, "E", l.comentario || (["1", "2"].includes(l.tipo) ? "Subtotal" : ""), { nf: PRESTO.nf.texto });
+      if (["1", "2"].includes(l.tipo)) continue;          // subtotales: solo texto, no suman
+      celda(r, "F", l.n || 0, { nf: PRESTO.nf.n });
+      celda(r, "G", l.l || 0, { nf: PRESTO.nf.dim });
+      celda(r, "H", l.a || 0, { nf: PRESTO.nf.dim });
+      celda(r, "I", l.h || 0, { nf: PRESTO.nf.dim });
+      if (l.tipo === "3") { evaluable = false; continue; }  // expresión: no se evalúa
+      const v = valorLineaPresto(l);
+      suma += v;
+      celda(r, "J", f(`OR(F${r}<>0,G${r}<>0,H${r}<>0,I${r}<>0)*(F${r} + (F${r} = 0))*(G${r} + (G${r} = 0))*(H${r} + (H${r} = 0))*(I${r} + (I${r} = 0))`, v),
+        { nf: PRESTO.nf.cant, formula: true });
+    }
+    const tot = nueva();
+    celda(tot, "J", `Total ${c.codigo}`, { nf: PRESTO.nf.texto, negrita: true });
+    let q;
+    if (evaluable) {
+      q = suma;
+      const fx = primera === ultima ? `J${primera}` : `SUM(J${primera}:J${ultima})`;
+      celda(tot, "K", f(fx, q), { nf: PRESTO.nf.cant, negrita: true, formula: true });
+    } else {
+      q = med.total ?? cantidad(h);                        // con expresiones, la cantidad del BC3
+      celda(tot, "K", q, { nf: PRESTO.nf.cant, negrita: true });
+    }
+    const imp = r2(q * pu);
+    celda(tot, "L", pu, { nf: PRESTO.nf.eur });
+    celda(tot, "M", f(`ROUND(K${tot}*L${tot},2)`, imp), { nf: PRESTO.nf.eur, negrita: true, formula: true });
+    celda(cab, "K", f(`K${tot}`, q), { nf: PRESTO.nf.cant, formula: true });
+    celda(cab, "L", f(`L${tot}`, pu), { nf: PRESTO.nf.eur, formula: true });
+    celda(cab, "M", f(`M${tot}`, imp), { nf: PRESTO.nf.eur, formula: true });
+    separador();
+    return { fila: cab, importe: imp };
+  }
+
+  // Cantidad de un capítulo: normalmente 1. Algunos generadores escriben ahí el importe del
+  // capítulo (cantidad = precio del propio capítulo); en ese caso se toma 1.
+  const cantidadCapitulo = (hc, h) => {
+    const q = cantidad(h);
+    if (q !== 1 && hc.precio !== null && Math.abs(hc.precio - q) < 0.011) return 1;
+    return q;
+  };
+
+  function capitulo(c, nivel, q, pila) {
+    const color = PRESTO.nivel[Math.min(nivel, PRESTO.nivel.length) - 1];
+    const cab = nueva();
+    const cfg = { negrita: true, relleno: color };
+    celda(cab, "A", c.codigo, { ...cfg, nf: PRESTO.nf.texto });
+    celda(cab, "B", "Capítulo", { ...cfg, nf: PRESTO.nf.texto });
+    celda(cab, "C", c.unidad || "", { ...cfg, nf: PRESTO.nf.texto });
+    celda(cab, "D", c.resumen || "", { ...cfg, nf: PRESTO.nf.texto, ajuste: true });
+    for (const col of "EFGHIJ") celda(cab, col, null, cfg);
+    altoResumen(cab, c.resumen);
+
+    const hijos = [];
+    for (const h of c.hijos) {
+      const hc = P.conceptos.get(h.codigo);
+      if (!hc) continue;
+      if (esCapitulo(hc)) {
+        if (pila.includes(hc.codigo)) continue;
+        hijos.push(capitulo(hc, nivel + 1, cantidadCapitulo(hc, h), [...pila, hc.codigo]));
+      } else {
+        hijos.push(partida(hc, c, h));
+      }
+    }
+    const tot = nueva();
+    const subtotal = hijos.reduce((a, x) => a + x.importe, 0);
+    const imp = r2(q * subtotal);
+    celda(tot, "J", `Total ${c.codigo}`, { nf: PRESTO.nf.texto, negrita: true });
+    celda(tot, "K", q, { nf: PRESTO.nf.cant });
+    celda(tot, "L", sumaDeFilas(hijos.map(x => x.fila), hijos.map(x => x.importe)), { nf: PRESTO.nf.eur, negrita: true, formula: true });
+    celda(tot, "M", f(`ROUND(K${tot}*L${tot},2)`, imp), { nf: PRESTO.nf.eur, negrita: true, formula: true });
+    celda(cab, "K", f(`K${tot}`, q), { ...cfg, nf: PRESTO.nf.cantCap, formula: true });
+    celda(cab, "L", f(`L${tot}`, subtotal), { ...cfg, nf: PRESTO.nf.eur, formula: true });
+    celda(cab, "M", f(`M${tot}`, imp), { ...cfg, nf: PRESTO.nf.eur, formula: true });
+    separador();
+    return { fila: cab, importe: imp };
+  }
+
+  // Cuerpo: capítulos de primer nivel (y partidas sueltas colgando de la raíz, si las hay)
+  const hijos = [];
+  for (const h of R.hijos) {
+    const hc = P.conceptos.get(h.codigo);
+    if (!hc) continue;
+    hijos.push(esCapitulo(hc) ? capitulo(hc, 1, cantidadCapitulo(hc, h), [R.codigo, hc.codigo]) : partida(hc, R, h));
+  }
+  const tot = nueva();
+  const total = r2(hijos.reduce((a, x) => a + x.importe, 0));
+  celda(tot, "J", `Total ${R.codigo}`, { nf: PRESTO.nf.texto, negrita: true });
+  celda(tot, "K", 1, { nf: PRESTO.nf.cant });
+  celda(tot, "L", sumaDeFilas(hijos.map(x => x.fila), hijos.map(x => x.importe)), { nf: PRESTO.nf.eur, negrita: true, formula: true });
+  celda(tot, "M", f(`ROUND(K${tot}*L${tot},2)`, total), { nf: PRESTO.nf.eur, negrita: true, formula: true });
+  separador();
+
+  // Desplegable de naturaleza en la columna B, como Presto
+  ws.dataValidations.add(`B4:B${fila}`, {
+    type: "list", allowBlank: true, showInputMessage: true, showErrorMessage: true,
+    formulae: ['"Capítulo,Partida,Mano de obra,Maquinaria,Material,Otros,Tarea,"'],
+  });
+  return { wb, total, filas: fila };
+}
 </script>
 <script>
 /* ===================================================================== *
@@ -947,43 +1195,31 @@ const barra = $("barra");
 document.addEventListener("drop", e => abrirArchivo(e.dataTransfer.files[0]));
 
 /* --------------------------- exportar --------------------------- */
-function construirExcel() {
-  const P = estado.P;
-  const wb = XLSX.utils.book_new();
-  // Presupuesto con descompuestos
-  const filas = [["Capítulo", "Código", "Tipo", "Ud", "Resumen", "Medición / Rend.", "Precio (€)", "Importe (€)"]];
-  let prev = null;
-  for (const l of lineas(P)) {
-    if (l.ruta !== prev) { prev = l.ruta; filas.push([l.ruta]); }
-    filas.push([l.capitulo, l.codigo, "Partida", l.unidad, l.resumen, l.medicion, l.precio || 0, l.importe]);
-    for (const d of lineasDescompuesto(P, l.codigo))
-      filas.push(["", "   " + d.h.codigo, d.tipo, d.hc ? d.hc.unidad : "", d.hc ? d.hc.resumen : "", d.cantidad, d.precio, r2(d.importe)]);
+function libroRecursos(P) {
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet("Recursos", { views: [{ state: "frozen", ySplit: 1 }] });
+  ws.columns = [
+    { header: "Tipo", width: 18 }, { header: "Código", width: 14 }, { header: "Ud", width: 6 },
+    { header: "Resumen", width: 54 }, { header: "Precio (€)", width: 12, style: { numFmt: "#,##0.00" } },
+    { header: "Cantidad en obra", width: 16, style: { numFmt: "#,##0.000" } },
+    { header: "Importe (€)", width: 14, style: { numFmt: "#,##0.00" } }, { header: "Nº partidas", width: 11 },
+  ];
+  for (const r of estado.recursos) {
+    ws.addRow([TIPOS[r.tipo].nombre, r.c.codigo, r.c.unidad, r.c.resumen,
+      r.tipo === "PC" ? null : (precio(P, r.c.codigo) || 0), r.tipo === "PC" ? null : r2(r.cantidad), r2(r.importe), r.partidas.size]);
   }
-  filas.push([], ["", "", "", "", "TOTAL PEM", "", "", r2(pem(P))]);
-  const ws1 = XLSX.utils.aoa_to_sheet(filas);
-  ws1["!cols"] = [10, 14, 8, 6, 60, 14, 12, 14].map(w => ({ wch: w }));
-  // Recursos
-  const rec = [["Tipo", "Código", "Ud", "Resumen", "Precio (€)", "Cantidad en obra", "Importe (€)", "Nº partidas"],
-    ...estado.recursos.map(r => [TIPOS[r.tipo].nombre, r.c.codigo, r.c.unidad, r.c.resumen,
-      r.tipo === "PC" ? "" : (precio(P, r.c.codigo) || 0), r.tipo === "PC" ? "" : r2(r.cantidad), r2(r.importe), r.partidas.size])];
-  const ws2 = XLSX.utils.aoa_to_sheet(rec);
-  ws2["!cols"] = [18, 14, 6, 50, 12, 16, 14, 11].map(w => ({ wch: w }));
-  ws2["!autofilter"] = { ref: `A1:H${rec.length}` };
-  XLSX.utils.book_append_sheet(wb, ws1, "Presupuesto");
-  XLSX.utils.book_append_sheet(wb, ws2, "Recursos");
-  return XLSX.write(wb, { bookType: "xlsx", type: "array" });
+  ws.eachRow((fila, n) => fila.eachCell(c => { c.font = { name: "Aptos Narrow", size: 9, bold: n === 1 }; }));
+  ws.autoFilter = { from: "A1", to: `H${ws.rowCount}` };
+  return wb;
 }
+
 function capacidadDescargas() {
   if (!(window.claude && typeof window.claude.use === "function")) return Promise.resolve(null);
   return window.claude.use("downloads").catch(() => null);
 }
 setTimeout(capacidadDescargas, 0);
-$("btn-excel").addEventListener("click", async () => {
-  if (typeof XLSX === "undefined") { toast("No se ha podido cargar la librería de Excel (lib/xlsx.full.min.js)."); return; }
-  const nombre = estado.P.archivo.replace(/\.bc3$/i, "") + "_visor.xlsx";
-  let blob;
-  try { blob = new Blob([construirExcel()], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }); }
-  catch (e) { toast("No se ha podido generar el Excel: " + e.message); return; }
+
+async function guardar(blob, nombre) {
   const dl = await capacidadDescargas();
   if (dl) {
     try { await dl.save({ filename: nombre, data: blob }); toast(`Guardado ${nombre}`); }
@@ -994,7 +1230,36 @@ $("btn-excel").addEventListener("click", async () => {
   a.href = URL.createObjectURL(blob); a.download = nombre;
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-});
+}
+
+async function exportar(tipo) {
+  $("menu-exportar").open = false;
+  if (typeof ExcelJS === "undefined") { toast("No se ha podido cargar la librería de Excel de la carpeta lib."); return; }
+  const P = estado.P;
+  const base = P.archivo.replace(/\.bc3$/i, "");
+  const botones = document.querySelectorAll("[data-exportar]");
+  botones.forEach(b => b.disabled = true);
+  toast("Generando el Excel…");
+  try {
+    await new Promise(r => setTimeout(r, 30));     // deja pintar el aviso antes del trabajo pesado
+    let wb, nombre;
+    if (tipo === "recursos") { wb = libroRecursos(P); nombre = `${base}_recursos.xlsx`; }
+    else {
+      const conPrecios = tipo === "presupuesto";
+      wb = libroPresto(P, ExcelJS, { conPrecios }).wb;
+      nombre = `${base}_${conPrecios ? "presupuesto" : "mediciones"}.xlsx`;
+    }
+    const buf = await wb.xlsx.writeBuffer();
+    await guardar(new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), nombre);
+  } catch (e) {
+    toast("No se ha podido generar el Excel: " + (e && e.message ? e.message : e));
+  } finally {
+    botones.forEach(b => b.disabled = false);
+  }
+}
+document.querySelectorAll("[data-exportar]").forEach(b => b.addEventListener("click", () => exportar(b.dataset.exportar)));
+document.addEventListener("click", e => { const m = $("menu-exportar"); if (m.open && !m.contains(e.target)) m.open = false; });
+document.addEventListener("keydown", e => { if (e.key === "Escape") $("menu-exportar").open = false; });
 
 cargar(EJEMPLO_BC3, "presupuesto_ejemplo.bc3", "windows-1252", true);
 </script>

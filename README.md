@@ -5,8 +5,9 @@ Todo se procesa en el navegador: el BC3 no se sube a ningún servidor.
 
 - `index.html`: página de inicio
 - `auditor.html`: auditoría automática con 22 reglas e informe Excel
-- `visor.html`: árbol del presupuesto, descompuestos, mediciones y recursos
-- `lib/`: librería de Excel (SheetJS 0.18.5, Apache 2.0), incluida para no depender de un CDN
+- `visor.html`: árbol del presupuesto, descompuestos, mediciones y recursos; exporta a Excel en formato Presto
+- `lib/`: librerías de Excel incluidas para no depender de un CDN: ExcelJS 4.4.0 (MIT), que usa el visor
+  para exportar en formato Presto, y SheetJS 0.18.5 (Apache 2.0), que usa el informe del auditor
 - `manifest.webmanifest` e iconos: para añadirla a la pantalla de inicio del móvil
 
 ## Publicar en GitHub Pages

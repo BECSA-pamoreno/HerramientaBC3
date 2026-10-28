@@ -499,7 +499,10 @@ function precioDesc(P, cod, pila = new Set()) {
 function precio(P, cod) {
   const c = P.conceptos.get(norm(cod));
   if (!c) return null;
-  return c.precio !== null ? c.precio : precioDesc(P, cod);
+  if (c.precio !== null) return c.precio;
+  const calc = precioDesc(P, cod);
+  // Como Presto: el precio que sale del descompuesto se redondea a céntimos
+  return calc === null ? null : r2(calc);
 }
 // Redondeo comercial a céntimos, misma fórmula que la versión Python
 const r2 = x => (x < 0 ? -1 : 1) * Math.floor(Math.abs(x) * 100 + 0.5 + 1e-9) / 100;
